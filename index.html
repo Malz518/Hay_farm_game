@@ -1,220 +1,163 @@
-
-```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <title>Hay Farm - لعبة مزرعة</title>
+<meta charset="UTF-8">
+<title>Hay Farm - Map</title>
 
-  <!-- Firebase (Compat لسهولة التعلم) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <style>
-    body{margin:0;font-family:Tahoma;background:linear-gradient(#9ae6b4,#68d391);user-select:none}
-    header{background:#f6ad55;padding:10px;display:flex;gap:6px;justify-content:space-around;box-shadow:0 4px 6px rgba(0,0,0,.2)}
-    .stat{background:#fff3cd;padding:6px 10px;border-radius:12px;font-weight:bold}
-    #farm{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:15px}
-    .plot{background:#fefcbf;border:4px solid #d69e2e;border-radius:18px;height:100px;display:flex;justify-content:center;align-items:center;flex-direction:column;cursor:pointer;text-align:center}
-    .ready{background:#9ae6b4}
-    .working{background:#faf089}
-    button{border:none;background:#f6ad55;padding:6px 12px;border-radius:12px;font-weight:bold;cursor:pointer;margin:3px}
-  </style>
+<style>
+body{
+  margin:0;
+  font-family:Tahoma;
+  overflow:hidden;
+  background:#9ae6b4;
+}
+header{
+  background:#f6ad55;
+  padding:8px;
+  display:flex;
+  justify-content:space-around;
+  font-weight:bold;
+}
+#world{
+  width:100vw;
+  height:calc(100vh - 50px);
+  overflow:hidden;
+  touch-action:none;
+}
+#map{
+  width:2000px;
+  height:2000px;
+  background:linear-gradient(#86efac,#4ade80);
+  position:relative;
+  transform-origin:0 0;
+}
+.building{
+  width:80px;
+  height:80px;
+  background:#fde68a;
+  border:3px solid #6b7280;
+  border-radius:16px;
+  position:absolute;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:32px;
+  cursor:grab;
+}
+</style>
 </head>
+
 <body>
 
 <header>
-  <div class="stat">💰 <span id="coins">0</span></div>
-  <div class="stat">⭐ Lv <span id="level">1</span></div>
-  <div class="stat">✨ XP <span id="exp">0</span></div>
-  <div class="stat">🌾 <span id="wheat">0</span></div>
-  <div class="stat">🍞 <span id="bread">0</span></div>
+💰 <span id="coins">0</span>
+⭐ XP <span id="xp">0</span>
+🏅 Lv <span id="level">1</span>
 </header>
 
-<div id="farm"></div>
+<div id="world">
+  <div id="map"></div>
+</div>
 
 <script>
-/* ================= Firebase Config ================= */
-const firebaseConfig = {
-  apiKey: "PUT_YOUR_KEY",
-  authDomain: "PUT_YOUR_DOMAIN",
-  projectId: "PUT_YOUR_PROJECT_ID"
+// ================= البيانات =================
+let coins=0,xp=0,level=1;
+let zoom=1, panX=0, panY=0;
+let draggingMap=false;
+let startX,startY;
+
+// المباني
+let buildings=[
+  {id:"farm",icon:"🌾",x:200,y:200},
+  {id:"bakery",icon:"🏭",x:350,y:200},
+  {id:"chicken",icon:"🐔",x:500,y:200},
+  {id:"cow",icon:"🐄",x:650,y:200},
+  {id:"sheep",icon:"🐑",x:800,y:200}
+];
+
+// ================= حفظ =================
+function save(){
+  localStorage.setItem("hayfarm_map",JSON.stringify({coins,xp,level,buildings}));
+}
+function load(){
+  const s=JSON.parse(localStorage.getItem("hayfarm_map"));
+  if(s){
+    coins=s.coins;xp=s.xp;level=s.level;
+    buildings=s.buildings;
+  }
+}
+load();
+
+// ================= واجهة =================
+const coinsEl=document.getElementById("coins");
+const xpEl=document.getElementById("xp");
+const levelEl=document.getElementById("level");
+function ui(){
+  coinsEl.textContent=coins;
+  xpEl.textContent=xp;
+  levelEl.textContent=level;
+  save();
+}
+ui();
+
+// ================= إنشاء المباني =================
+const map=document.getElementById("map");
+
+function renderBuildings(){
+  map.innerHTML="";
+  buildings.forEach(b=>{
+    const el=document.createElement("div");
+    el.className="building";
+    el.textContent=b.icon;
+    el.style.left=b.x+"px";
+    el.style.top=b.y+"px";
+
+    // سحب المبنى
+    let drag=false,ox,oy;
+    el.onmousedown=e=>{
+      drag=true;
+      ox=e.clientX-b.x;
+      oy=e.clientY-b.y;
+      e.stopPropagation();
+    };
+    window.onmouseup=()=>drag=false;
+    window.onmousemove=e=>{
+      if(!drag)return;
+      b.x=e.clientX-ox;
+      b.y=e.clientY-oy;
+      el.style.left=b.x+"px";
+      el.style.top=b.y+"px";
+      save();
+    };
+
+    map.appendChild(el);
+  });
+}
+renderBuildings();
+
+// ================= سحب الخريطة =================
+const world=document.getElementById("world");
+
+world.onmousedown=e=>{
+  draggingMap=true;
+  startX=e.clientX-panX;
+  startY=e.clientY-panY;
+};
+window.onmouseup=()=>draggingMap=false;
+window.onmousemove=e=>{
+  if(!draggingMap)return;
+  panX=e.clientX-startX;
+  panY=e.clientY-startY;
+  map.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
 };
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-let uid;
-let gameData;
-
-/* ================= Auth ================= */
-auth.signInAnonymously().then(res=>{
-  uid = res.user.uid;
-  loadGame();
-});
-
-/* ================= Load ================= */
-async function loadGame(){
-  const ref = db.collection('users').doc(uid);
-  const doc = await ref.get();
-
-  if(!doc.exists){
-    gameData = {
-      coins:100,
-      level:1,
-      exp:0,
-      nextLevelExp:50,
-      plots:Array(8).fill(null),
-      storage:{
-        wheat:{amount:0,max:20},
-        bread:{amount:0,max:10}
-      },
-      bakery:{level:1,producing:false,finish:0},
-      dailyTask:null
-    };
-    newDailyTask();
-    await ref.set(gameData);
-  } else {
-    gameData = doc.data();
-    if(!gameData.bakery) gameData.bakery={level:1,producing:false,finish:0};
-    if(!gameData.storage) gameData.storage={wheat:{amount:0,max:20},bread:{amount:0,max:10}};
-    if(!gameData.dailyTask) newDailyTask();
-  }
-  render();
-}
-
-/* ================= Render ================= */
-function render(){
-  coins.textContent = gameData.coins;
-  level.textContent = gameData.level;
-  exp.textContent = gameData.exp;
-  wheat.textContent = gameData.storage.wheat.amount;
-  bread.textContent = gameData.storage.bread.amount;
-
-  farm.innerHTML='';
-
-  // الحقول
-  gameData.plots.forEach((plot,i)=>{
-    const div=document.createElement('div');
-    div.className='plot';
-
-    if(!plot){
-      div.innerHTML='➕ زرع قمح';
-      div.onclick=()=>plant(i);
-    } else if(Date.now()>=plot.finish){
-      div.classList.add('ready');
-      div.innerHTML='🌾 جاهز<br><button>حصاد</button>';
-      div.onclick=()=>harvest(i);
-    } else {
-      div.classList.add('working');
-      div.innerHTML='⏳ ينمو';
-    }
-    farm.appendChild(div);
-  });
-
-  // المخبز
-  const bakery=document.createElement('div');
-  bakery.className='plot';
-
-  if(!gameData.bakery.producing){
-    bakery.innerHTML=`🏭 مخبز Lv ${gameData.bakery.level}
-    <button onclick="startBakery()">صنع خبز</button>
-    <button onclick="upgradeBakery()">⬆️ ترقية</button>`;
-  } else if(Date.now()>=gameData.bakery.finish){
-    bakery.classList.add('ready');
-    bakery.innerHTML='🍞 الخبز جاهز<br><button onclick="collectBread()">استلام</button>';
-  } else {
-    bakery.classList.add('working');
-    bakery.innerHTML='⏳ يخبز';
-  }
-  farm.appendChild(bakery);
-}
-
-/* ================= Gameplay ================= */
-function plant(i){
-  if(gameData.storage.wheat.amount>=gameData.storage.wheat.max){
-    alert('📦 المخزن ممتلئ');return;
-  }
-  gameData.plots[i]={finish:Date.now()+10000};
-  save();
-}
-
-function harvest(i){
-  if(Date.now()<gameData.plots[i].finish) return;
-  gameData.plots[i]=null;
-  gameData.storage.wheat.amount++;
-  gameData.coins+=5;
-  addExp(10);
-  taskProgress('harvest_wheat');
-  save();
-}
-
-function startBakery(){
-  if(gameData.storage.wheat.amount<2){alert('تحتاج 2 قمح');return;}
-  if(gameData.bakery.producing) return;
-
-  const time=15000/gameData.bakery.level;
-  gameData.storage.wheat.amount-=2;
-  gameData.bakery.producing=true;
-  gameData.bakery.finish=Date.now()+time;
-  save();
-}
-
-function collectBread(){
-  if(Date.now()<gameData.bakery.finish) return;
-  if(gameData.storage.bread.amount>=gameData.storage.bread.max){alert('📦 مخزن الخبز ممتلئ');return;}
-
-  gameData.bakery.producing=false;
-  gameData.storage.bread.amount++;
-  gameData.coins+=15;
-  addExp(15);
-  save();
-}
-
-function upgradeBakery(){
-  const cost=gameData.bakery.level*100;
-  if(gameData.coins<cost){alert('💰 لا يوجد عملات');return;}
-  gameData.coins-=cost;
-  gameData.bakery.level++;
-  alert('🎉 تمت الترقية');
-  save();
-}
-
-/* ================= Level ================= */
-function addExp(x){
-  gameData.exp+=x;
-  if(gameData.exp>=gameData.nextLevelExp){
-    gameData.exp-=gameData.nextLevelExp;
-    gameData.level++;
-    gameData.nextLevelExp=Math.floor(gameData.nextLevelExp*1.5);
-    alert('🎉 وصلت للمستوى '+gameData.level);
-  }
-}
-
-/* ================= Daily Task ================= */
-function newDailyTask(){
-  gameData.dailyTask={type:'harvest_wheat',target:5,progress:0,rewardCoins:50,rewardExp:20,date:new Date().toDateString()};
-}
-
-function taskProgress(type){
-  const t=gameData.dailyTask;
-  if(!t||t.type!==type) return;
-  t.progress++;
-  if(t.progress>=t.target){
-    gameData.coins+=t.rewardCoins;
-    addExp(t.rewardExp);
-    alert('🎯 أنهيت المهمة اليومية');
-    newDailyTask();
-  }
-}
-
-/* ================= Save ================= */
-function save(){
-  db.collection('users').doc(uid).set(gameData);
-  render();
-}
+// ================= Zoom =================
+world.onwheel=e=>{
+  zoom+=e.deltaY*-0.001;
+  zoom=Math.min(Math.max(0.4,zoom),2);
+  map.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
+};
 </script>
+
 </body>
 </html>
