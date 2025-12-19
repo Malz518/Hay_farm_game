@@ -51,14 +51,37 @@ header{
 
 <header>
 💰 <span id="coins">0</span>
-⭐ XP <span id="xp">0</span>
-🏅 Lv <span id="level">1</span>
+🌾 <span id="wheat">0</span>
+🥚 <span id="eggs">0</span>
+🥛 <span id="milk">0</span>
+🧶 <span id="wool">0</span>
+🍞 <span id="bread">0</span>
+⭐ <span id="xp">0</span>
+🏅 <span id="level">1</span>
 </header>
 
+
 <div id="world">
-  <div id="map"></div>
+  <div id="map">let resources = {
+  wheat: 0,
+  eggs: 0,
+  milk: 0,
+  wool: 0,
+  bread: 0,
+  cake: 0,
+  jam: 0,
+  strawberry: 0
+};
+
+const productionRules = {
+  chicken: { time: 10000, resource: "eggs", amount: 1 },
+  cow:     { time: 15000, resource: "milk", amount: 1 },
+  sheep:  { time: 20000, resource: "wool", amount: 1 },
+  bakery: { time: 12000, resource: "bread", amount: 1, cost:"wheat" }
+};/div>
 </div>
 
+  
 <script>
 // ================= البيانات =================
 let coins=0,xp=0,level=1;
@@ -67,14 +90,15 @@ let draggingMap=false;
 let startX,startY;
 
 // المباني
+
 let buildings=[
   {id:"farm",icon:"🌾",x:200,y:200},
-  {id:"bakery",icon:"🏭",x:350,y:200},
-  {id:"chicken",icon:"🐔",x:500,y:200},
-  {id:"cow",icon:"🐄",x:650,y:200},
-  {id:"sheep",icon:"🐑",x:800,y:200}
+  {id:"bakery",icon:"🏭",x:350,y:200,last:Date.now()},
+  {id:"chicken",icon:"🐔",x:500,y:200,last:Date.now()},
+  {id:"cow",icon:"🐄",x:650,y:200,last:Date.now()},
+  {id:"sheep",icon:"🐑",x:800,y:200,last:Date.now()}
 ];
-
+ 
 // ================= حفظ =================
 function save(){
   localStorage.setItem("hayfarm_map",JSON.stringify({coins,xp,level,buildings}));
@@ -92,12 +116,19 @@ load();
 const coinsEl=document.getElementById("coins");
 const xpEl=document.getElementById("xp");
 const levelEl=document.getElementById("level");
+
 function ui(){
   coinsEl.textContent=coins;
   xpEl.textContent=xp;
   levelEl.textContent=level;
+  document.getElementById("wheat").textContent=resources.wheat;
+  document.getElementById("eggs").textContent=resources.eggs;
+  document.getElementById("milk").textContent=resources.milk;
+  document.getElementById("wool").textContent=resources.wool;
+  document.getElementById("bread").textContent=resources.bread;
   save();
 }
+ 
 ui();
 
 // ================= إنشاء المباني =================
@@ -157,7 +188,11 @@ world.onwheel=e=>{
   zoom=Math.min(Math.max(0.4,zoom),2);
   map.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
 };
+
+  setInterval(processProduction, 3000);
+no
 </script>
+  
 
 </body>
 </html>
